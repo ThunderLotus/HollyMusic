@@ -31,16 +31,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # ghcr.io 镜像名必须全小写；仓库所有者 redcatH 需转小写
-      - name: Set image name (lowercase)
-        run: echo "IMAGE_NAME=ghcr.io/$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')/hollymusic" >> $GITHUB_ENV
+      # Docker Hub 镜像名；用户名 thunderlotus 若与 Docker Hub 账号不符请自行替换
+      - name: Set image name (Docker Hub)
+        run: echo "IMAGE_NAME=docker.io/thunderlotus/hollymusic" >> $GITHUB_ENV
 
-      - name: Log in to ghcr.io
+      # 登录 Docker Hub：需在仓库 Secrets 中配置 DOCKERHUB_USERNAME 与 DOCKERHUB_TOKEN（Access Token）
+      - name: Log in to Docker Hub
         uses: docker/login-action@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}   # 自动提供，无需手动建 secret
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # 从 GITHUB_REF（refs/tags/v1.0.0）提取 tag 名
       - name: Extract tag name
@@ -111,9 +111,9 @@ jobs:
         run: |
           {
             if [ "${{ github.event_name }}" = "push" ]; then
-              echo "🐳 **Docker 镜像**：\`ghcr.io/redcath/hollymusic:${{ steps.rel.outputs.tag }}\`（\`latest\` 已同步更新）"
+              echo "🐳 **Docker 镜像**：\`thunderlotus/hollymusic:${{ steps.rel.outputs.tag }}\`（\`latest\` 已同步更新）"
             else
-              echo "🐳 **Docker 镜像**：\`ghcr.io/redcath/hollymusic:${{ steps.rel.outputs.tag }}\`"
+              echo "🐳 **Docker 镜像**：\`thunderlotus/hollymusic:${{ steps.rel.outputs.tag }}\`"
             fi
             echo ""
             cat RELEASE_NOTES.md
@@ -131,12 +131,14 @@ jobs:
 
       # ---- 同步 CHANGELOG.md 与 package.json 版本号，提交回 main ----
 
+      # 硬编码 v0.17.0.. 依赖仓库存在 v0.17.0 锚点 tag（upstream 才有），
+      # 新仓库/拉取后重建的仓库没有该 tag 会因 git log v0.17.0.. 失败而退出码 1。
+      # 改用 --latest：只渲染最新版本段（v0.17.0 及更早的手工总结在 cliff.toml header，不受影响）。
       - name: Regenerate CHANGELOG.md (git-cliff)
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          # 范围 v0.17.0..：v0.17.0 及更早历史固定在 cliff.toml header 手工段，不自动展开
-          args: v0.17.0.. -o CHANGELOG.md
+          args: --latest --strip header -o CHANGELOG.md
         env:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
