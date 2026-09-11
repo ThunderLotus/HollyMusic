@@ -100,7 +100,7 @@ function SidebarContent({ onNavigate }: ContentProps) {
     <>
       <div className="flex items-center gap-2 px-3 py-4">
         <Music2 className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold">Holly Music</span>
+        <span className="text-lg font-bold">Holly Music <span className="text-xs font-normal text-muted-foreground">v{__APP_VERSION__}</span></span>
       </div>
       <nav className="flex flex-col gap-1">
         {nav.map(item => (

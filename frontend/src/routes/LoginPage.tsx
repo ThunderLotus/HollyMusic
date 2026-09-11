@@ -44,7 +44,7 @@ export function LoginPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Music2 className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="text-xl font-bold">Holly Music</h1>
+          <h1 className="text-xl font-bold">Holly Music <span className="text-xs font-normal text-muted-foreground">v{__APP_VERSION__}</span></h1>
           <p className="text-sm text-muted-foreground">登录以收藏、创建歌单与查看历史</p>
         </div>
 
