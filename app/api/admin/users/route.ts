@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const username = typeof body?.username === 'string' ? body.username : ''
     const password = typeof body?.password === 'string' ? body.password : ''
-    const user = await createUser(username, password)
+    const role = typeof body?.role === 'string' ? body.role : undefined
+    const user = await createUser(username, password, role)
     return createSuccessResponse(user, 201)
   } catch (err) {
     const g = guard(err)

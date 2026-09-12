@@ -2,7 +2,7 @@
  * 用户管理服务
  *
  * 管理员对用户的 CRUD 操作。所有写操作都带业务保护：
- * - admin 账户（username === 'admin'）不可删除、不可改用户名
+ * - 管理员账户（role === 'admin'）不可删除
  * - 禁止当前登录用户删除自己
  * - 用户名唯一约束
  *
@@ -18,7 +18,9 @@ const prisma = new PrismaClient()
 export interface AdminUserView {
   id: number
   username: string
-  /** 是否管理员（仅 username === 'admin'） */
+  /** 角色：'admin' | 'user' */
+  role: string
+  /** 是否管理员 */
   isAdmin: boolean
   /** 是否设置了密码（不返回密码本身） */
   hasPassword: boolean
@@ -41,6 +43,7 @@ export interface AdminUserView {
 function toView(u: {
   id: number
   username: string
+  role: string
   subsonicSecret: string | null
   mustChangePassword: boolean
   lastLogin: Date | null
@@ -53,7 +56,8 @@ function toView(u: {
   return {
     id: u.id,
     username: u.username,
-    isAdmin: u.username === 'admin',
+    role: u.role,
+    isAdmin: u.role === 'admin',
     hasPassword: !!u.subsonicSecret,
     mustChangePassword: !!u.mustChangePassword,
     lastLogin: u.lastLogin,
@@ -82,16 +86,17 @@ export async function getUserById(id: number): Promise<AdminUserView | null> {
  * 新建用户。
  * @throws UserInputError 用户名已存在 / 为空
  */
-export async function createUser(username: string, password: string): Promise<AdminUserView> {
+export async function createUser(username: string, password: string, role?: string): Promise<AdminUserView> {
   const name = (username || '').trim()
   if (!name) throw new UserInputError('用户名不能为空')
   if (!password) throw new UserInputError('密码不能为空')
+  const userRole = role === 'admin' ? 'admin' : 'user'
 
   try {
     const u = await prisma.user.create({
-      data: { username: name, subsonicSecret: password },
+      data: { username: name, subsonicSecret: password, role: userRole },
     })
-    logger.info(`[user-service] 新建用户: ${name}`)
+    logger.info(`[user-service] 新建用户: ${name} (role=${userRole})`)
     return toView(u)
   } catch (e) {
     // P2002 = unique constraint violation
@@ -103,18 +108,18 @@ export async function createUser(username: string, password: string): Promise<Ad
 }
 
 /**
- * 更新用户。username 可选；若提供 password 则更新密码，否则保留原密码。
+ * 更新用户。username 可选；password 可选；role 可选。
  *
  * 保护规则：
- * - admin 账户（原 username === 'admin'）不可改用户名（防丢管理员）
  * - 改用户名时检查新名唯一
+ * - 管理员可修改任何用户的用户名（含原 admin 账户）
  *
  * @throws NotFoundError 用户不存在
- * @throws UserInputError 改名冲突 / admin 改名
+ * @throws UserInputError 改名冲突
  */
 export async function updateUser(
   id: number,
-  opts: { username?: string; password?: string | null }
+  opts: { username?: string; password?: string | null; role?: string }
 ): Promise<AdminUserView> {
   const existing = await prisma.user.findUnique({ where: { id } })
   if (!existing) throw new NotFoundError('用户不存在')
@@ -122,6 +127,7 @@ export async function updateUser(
   const data: {
     username?: string
     subsonicSecret?: string | null
+    role?: string
     mustChangePassword?: boolean
     sessionVersion?: { increment: number }
   } = {}
@@ -130,10 +136,6 @@ export async function updateUser(
     const newName = opts.username.trim()
     if (!newName) throw new UserInputError('用户名不能为空')
     if (newName !== existing.username) {
-      // admin 账户禁止改名
-      if (existing.username === 'admin') {
-        throw new UserInputError('管理员账户不可更改用户名')
-      }
       // 改名本身即令旧 cookie 失效（签名含用户名），无需递增版本
       data.username = newName
     }
@@ -146,6 +148,12 @@ export async function updateUser(
     data.mustChangePassword = true
     // 会话版本 +1：该用户所有已登录设备的旧会话立即失效
     data.sessionVersion = { increment: 1 }
+  }
+
+  if (opts.role != null && (opts.role === 'admin' || opts.role === 'user')) {
+    if (opts.role !== existing.role) {
+      data.role = opts.role
+    }
   }
 
   if (Object.keys(data).length === 0) {
@@ -169,20 +177,20 @@ export async function updateUser(
  * 删除用户。
  *
  * 保护规则：
- * - admin 账户（username === 'admin'）不可删除
+ * - 管理员账户（role === 'admin'）不可删除
  * - 禁止删除自己（currentUsername 校验）
  *
  * 关联数据：Playlist/PlayHistory 用 username 做外键，onDelete: Cascade，会级联删除其歌单；
  * Favorite 用 userId，同样 Cascade。
  *
  * @throws NotFoundError 用户不存在
- * @throws UserInputError admin 账户 / 删除自己
+ * @throws UserInputError 管理员账户 / 删除自己
  */
 export async function deleteUser(id: number, currentUsername: string): Promise<void> {
   const existing = await prisma.user.findUnique({ where: { id } })
   if (!existing) throw new NotFoundError('用户不存在')
 
-  if (existing.username === 'admin') {
+  if (existing.role === 'admin') {
     throw new UserInputError('管理员账户不可删除')
   }
   if (existing.username === currentUsername) {

@@ -5,6 +5,7 @@
 export interface MeResponse {
   authenticated: boolean
   username: string | null
+  isAdmin: boolean
   mustChangePassword: boolean
 }
 

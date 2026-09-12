@@ -40,6 +40,7 @@ function stopHeartbeat() {
 interface AuthStore {
   authenticated: boolean | null
   username: string | null
+  isAdmin: boolean
   /** 是否需要强制修改密码（首次登录/管理员重置后为 true） */
   mustChangePassword: boolean
   loading: boolean
@@ -53,6 +54,7 @@ interface AuthStore {
 export const useAuthStore = create<AuthStore>((set) => ({
   authenticated: null,
   username: null,
+  isAdmin: false,
   mustChangePassword: false,
   loading: false,
 
@@ -60,10 +62,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ loading: true })
     try {
       const me = await getMe()
-      set({ authenticated: me.authenticated, username: me.username, mustChangePassword: me.mustChangePassword, loading: false })
+      set({ authenticated: me.authenticated, username: me.username, isAdmin: me.isAdmin, mustChangePassword: me.mustChangePassword, loading: false })
       if (me.authenticated) startHeartbeat()
     } catch {
-      set({ authenticated: false, username: null, mustChangePassword: false, loading: false })
+      set({ authenticated: false, username: null, isAdmin: false, mustChangePassword: false, loading: false })
     }
   },
 
@@ -76,7 +78,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: async () => {
     stopHeartbeat()
     await apiLogout()
-    set({ authenticated: false, username: null, mustChangePassword: false })
+    set({ authenticated: false, username: null, isAdmin: false, mustChangePassword: false })
   },
 
   changePassword: async (currentPassword, newPassword) => {

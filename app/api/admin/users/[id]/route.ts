@@ -66,7 +66,8 @@ export async function PUT(
     const body = await request.json().catch(() => ({}))
     const username = typeof body?.username === 'string' ? body.username : undefined
     const password = typeof body?.password === 'string' ? body.password : undefined
-    const user = await updateUser(id, { username, password })
+    const role = typeof body?.role === 'string' ? body.role : undefined
+    const user = await updateUser(id, { username, password, role })
     return createSuccessResponse(user)
   } catch (err) {
     const g = guard(err)

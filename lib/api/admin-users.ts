@@ -7,6 +7,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from './client'
 export interface AdminUser {
   id: number
   username: string
+  role: string
   isAdmin: boolean
   hasPassword: boolean
   mustChangePassword: boolean
@@ -23,13 +24,13 @@ export function listUsers(): Promise<{ list: AdminUser[] }> {
   return apiGet<{ list: AdminUser[] }>('admin/users')
 }
 
-export function createUser(username: string, password: string): Promise<AdminUser> {
-  return apiPost<AdminUser>('admin/users', { username, password })
+export function createUser(username: string, password: string, role?: string): Promise<AdminUser> {
+  return apiPost<AdminUser>('admin/users', { username, password, role })
 }
 
 export function updateUser(
   id: number,
-  opts: { username?: string; password?: string }
+  opts: { username?: string; password?: string; role?: string }
 ): Promise<AdminUser> {
   return apiPut<AdminUser>(`admin/users/${id}`, opts)
 }

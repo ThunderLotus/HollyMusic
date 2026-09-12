@@ -15,6 +15,7 @@ const prisma = new PrismaClient()
 export interface RequestUser {
   id: number
   username: string
+  role: string
 }
 
 export interface AuthState {
@@ -46,14 +47,11 @@ export class ForbiddenError extends Error {
   }
 }
 
-/** 管理员用户名约定（与 config/users.json 的 admin 兼容） */
-const ADMIN_USERNAME = 'admin'
-
 /**
- * 判断用户名是否为管理员（当前约定：username === 'admin'）。
+ * 判断用户角色是否为管理员。
  */
-export function isAdmin(username: string | null | undefined): boolean {
-  return !!username && username === ADMIN_USERNAME
+export function isAdmin(role: string | null | undefined): boolean {
+  return !!role && role === 'admin'
 }
 
 /**
@@ -81,7 +79,7 @@ export async function getAuthState(request: NextRequest): Promise<AuthState> {
       logger.info(`[user-context] 会话版本不匹配（cookie=${session.sessionVersion} db=${u.sessionVersion}），旧会话已失效: ${u.username}`)
       return { authenticated: false, user: null, mustChangePassword: false }
     }
-    return { authenticated: true, user: { id: u.id, username: u.username }, mustChangePassword: !!u.mustChangePassword }
+    return { authenticated: true, user: { id: u.id, username: u.username, role: u.role }, mustChangePassword: !!u.mustChangePassword }
   } catch (e) {
     logger.error('[user-context] getAuthState: 查询用户失败', e)
     return { authenticated: false, user: null, mustChangePassword: false }
@@ -101,12 +99,12 @@ export async function requireUser(request: NextRequest): Promise<RequestUser> {
 }
 
 /**
- * 要求已登录且为管理员（username === 'admin'），否则抛 AuthError(401) 或 ForbiddenError(403)。
+ * 要求已登录且为管理员（role === 'admin'），否则抛 AuthError(401) 或 ForbiddenError(403)。
  * 管理路由入口调用。
  */
 export async function requireAdmin(request: NextRequest): Promise<RequestUser> {
   const user = await requireUser(request)
-  if (!isAdmin(user.username)) {
+  if (!isAdmin(user.role)) {
     throw new ForbiddenError()
   }
   return user

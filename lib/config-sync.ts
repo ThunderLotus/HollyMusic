@@ -83,7 +83,7 @@ export async function syncUsersFromConfig(configPath?: string): Promise<SyncUser
         }
         const mustChange = username === 'admin'
         await prisma.user.create({
-          data: { username, subsonicSecret: effectivePassword, mustChangePassword: mustChange },
+          data: { username, subsonicSecret: effectivePassword, mustChangePassword: mustChange, role: username === 'admin' ? 'admin' : 'user' },
         })
         created.push(username)
       }

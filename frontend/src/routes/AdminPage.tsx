@@ -30,18 +30,19 @@ export function AdminPage() {
   const [searchParams] = useSearchParams()
   const authenticated = useAuthStore(s => s.authenticated)
   const currentUsername = useAuthStore(s => s.username)
+  const isAdmin = useAuthStore(s => s.isAdmin)
 
   const tabRaw = searchParams.get('tab')
   const tab: TabKey = isValidTab(tabRaw) ? tabRaw : 'users'
 
-  // 鉴权：未登录踢登录页，非 admin 踢首页
+  // 鉴权：未登录踢登录页，非管理员踢首页
   useEffect(() => {
     if (authenticated === false) {
       navigate('/login', { replace: true })
-    } else if (authenticated === true && currentUsername !== 'admin') {
+    } else if (authenticated === true && !isAdmin) {
       navigate('/', { replace: true })
     }
-  }, [authenticated, currentUsername, navigate])
+  }, [authenticated, isAdmin, navigate])
 
   const switchTab = (key: TabKey) => {
     navigate(`/admin?tab=${key}`)
@@ -52,8 +53,8 @@ export function AdminPage() {
     return <div className="p-6"><LoadingSkeleton count={5} /></div>
   }
 
-  // 非 admin 不渲染内容（useEffect 会重定向）
-  if (currentUsername !== 'admin') {
+  // 非管理员不渲染内容（useEffect 会重定向）
+  if (!isAdmin) {
     return <div className="p-6"><LoadingSkeleton count={3} /></div>
   }
 

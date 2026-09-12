@@ -54,8 +54,8 @@ export function UsersPanel() {
     await reload()
   }
 
-  const handleUpdated = async (id: number, username: string) => {
-    await updateUser(id, { username })
+  const handleUpdated = async (id: number, username: string, role: string) => {
+    await updateUser(id, { username, role })
     setDialog(null)
     await reload()
   }
@@ -63,6 +63,16 @@ export function UsersPanel() {
   const handlePasswordChanged = async (id: number, password: string) => {
     await updateUser(id, { password })
     setDialog(null)
+  }
+
+  const handleResetPassword = async (u: AdminUser) => {
+    if (!confirm(`确定将用户「${u.username}」的密码重置为 12345？`)) return
+    try {
+      await updateUser(u.id, { password: '12345' })
+      await reload()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '重置失败')
+    }
   }
 
   const handleDelete = async (u: AdminUser) => {
@@ -165,15 +175,22 @@ export function UsersPanel() {
                         <button
                           onClick={() => setDialog({ kind: 'password', user: u })}
                           className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                          title="重置密码"
+                          title="设置密码"
                         >
                           <KeyRound className="h-4 w-4" />
                         </button>
                         <button
+                          onClick={() => handleResetPassword(u)}
+                          className="rounded p-1.5 text-muted-foreground hover:bg-amber-500/20 hover:text-amber-600"
+                          title="重置密码为 12345"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                          <span className="sr-only">重置为12345</span>
+                        </button>
+                        <button
                           onClick={() => setDialog({ kind: 'edit', user: u })}
-                          disabled={u.isAdmin}
-                          className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-                          title={u.isAdmin ? '管理员不可改名' : '编辑'}
+                          className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          title="编辑"
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -218,9 +235,45 @@ interface DialogProps {
   mode: Exclude<DialogMode, null>
   onClose: () => void
   onCreated: (username: string, password: string) => Promise<void>
-  onUpdated: (id: number, username: string) => Promise<void>
+  onUpdated: (id: number, username: string, role: string) => Promise<void>
   onPasswordChanged: (id: number, password: string) => Promise<void>
 }
+
+function UserDialog({ mode, onClose, onCreated, onUpdated, onPasswordChanged }: DialogProps) {
+  const [username, setUsername] = useState(mode.kind === 'edit' ? mode.user.username : '')
+  const [role, setRole] = useState(mode.kind === 'edit' ? (mode.user.role || 'user') : 'user')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const title =
+    mode.kind === 'create'
+      ? '新建用户'
+      : mode.kind === 'edit'
+        ? '编辑用户'
+        : '设置密码'
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErr(null)
+    setSubmitting(true)
+    try {
+      if (mode.kind === 'create') {
+        if (!username.trim() || !password) throw new Error('用户名和密码不能为空')
+        await onCreated(username.trim(), password)
+      } else if (mode.kind === 'edit') {
+        if (!username.trim()) throw new Error('用户名不能为空')
+        await onUpdated(mode.user.id, username.trim(), role)
+      } else {
+        if (!password) throw new Error('密码不能为空')
+        await onPasswordChanged(mode.user.id, password)
+      }
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : '操作失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
 function UserDialog({ mode, onClose, onCreated, onUpdated, onPasswordChanged }: DialogProps) {
   const [username, setUsername] = useState(mode.kind === 'edit' ? mode.user.username : '')
@@ -278,24 +331,38 @@ function UserDialog({ mode, onClose, onCreated, onUpdated, onPasswordChanged }: 
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="用户名"
-                disabled={mode.kind === 'edit' && mode.user.isAdmin}
-                className="w-full rounded-md bg-background px-3 py-2 text-sm outline-none ring-1 ring-border focus:ring-primary disabled:opacity-50"
+                className="w-full rounded-md bg-background px-3 py-2 text-sm outline-none ring-1 ring-border focus:ring-primary"
               />
             </label>
           )}
-          <label className="mb-4 block">
-            <span className="mb-1 block text-xs text-muted-foreground">
-              {mode.kind === 'edit' ? '新密码（留空不改）' : '密码'}
-            </span>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder={mode.kind === 'edit' ? '留空表示不修改密码' : '密码'}
-              autoFocus={mode.kind === 'password'}
-              className="w-full rounded-md bg-background px-3 py-2 text-sm outline-none ring-1 ring-border focus:ring-primary"
-            />
-          </label>
+          {mode.kind === 'edit' && (
+            <label className="mb-3 block">
+              <span className="mb-1 block text-xs text-muted-foreground">角色</span>
+              <select
+                value={role}
+                onChange={e => setRole(e.target.value)}
+                className="w-full rounded-md bg-background px-3 py-2 text-sm outline-none ring-1 ring-border focus:ring-primary"
+              >
+                <option value="user">普通用户</option>
+                <option value="admin">管理员</option>
+              </select>
+            </label>
+          )}
+          {mode.kind !== 'edit' && (
+            <label className="mb-4 block">
+              <span className="mb-1 block text-xs text-muted-foreground">
+                {mode.kind === 'password' ? '新密码' : '密码'}
+              </span>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="密码"
+                autoFocus={mode.kind === 'password'}
+                className="w-full rounded-md bg-background px-3 py-2 text-sm outline-none ring-1 ring-border focus:ring-primary"
+              />
+            </label>
+          )}
           {err && <p className="mb-3 text-xs text-destructive">{err}</p>}
           <div className="flex justify-end gap-2">
             <button
