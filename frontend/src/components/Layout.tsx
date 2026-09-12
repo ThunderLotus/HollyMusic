@@ -82,7 +82,7 @@ function SidebarContent({ onNavigate }: ContentProps) {
     setMenuOpen(false)
     onNavigate?.()
     await logout()
-    navigate('/')
+    navigate('/login', { replace: true })
   }
 
   const goAdmin = () => {

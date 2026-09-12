@@ -135,7 +135,7 @@ export function App() {
   }
 
   if (authenticated === null) return <div className="min-h-screen bg-background" />
-  if (authenticated === false) return null
+  if (authenticated === false) return <div className="min-h-screen bg-background" />
   if (mustChangePassword && location.pathname !== '/change-password') return <Navigate to="/change-password" replace />
 
   // 改密页同样必须已登录，但保持独立全屏布局。
