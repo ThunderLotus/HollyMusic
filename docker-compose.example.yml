@@ -28,7 +28,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:./prisma/data/music.db
+      - DATABASE_URL=file:./data/music.db
       # 音频磁盘缓存：指向已挂载的 ./cache_data，多用户共享 + Range/seek 支持
       - ENABLE_FILE_CACHE=true
       - AUDIO_CACHE_DIR=/app/.cache/audio-cache
@@ -39,7 +39,7 @@ services:
       # music-sources.json 等运行时配置
       - ./config:/app/config
       # SQLite 数据库持久化（重要！首次启动自动建库并运行迁移）
-      - ./prisma_data:/app/prisma/prisma/data
+      - ./prisma_data:/app/prisma/data
       # 音频磁盘缓存目录（对应 AUDIO_CACHE_DIR）
       - ./cache_data:/app/.cache
       # 日志（可选）
