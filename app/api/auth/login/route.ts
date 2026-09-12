@@ -15,6 +15,7 @@ import { NextRequest } from 'next/server'
 import crypto from 'crypto'
 import { createSuccessResponse, createErrorResponse, ErrorCodes } from '@/lib/api-response'
 import { createSessionCookies } from '@/lib/services/auth'
+import { isAdmin } from '@/lib/services/user-context'
 import { logger } from '@/lib/logger'
 import { PrismaClient } from '@/lib/generated/prisma'
 import { updateLastLoginByUsername, updateLastSeenByUsername, getClientIp, getUa } from '@/lib/user'
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
     //    其旧 cookie 已因版本不匹配失效，此处新签的即为唯一有效版本）
     const cookies = createSessionCookies(username, user.sessionVersion)
     const res = createSuccessResponse({
-      user: { username, mustChangePassword: !!user.mustChangePassword },
+      user: { username, isAdmin: isAdmin(user.role), mustChangePassword: !!user.mustChangePassword },
     })
     for (const c of cookies) {
       res.cookies.set(c.name, c.value, c)

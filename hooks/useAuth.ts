@@ -71,7 +71,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   login: async (username, password) => {
     const res = await apiLogin(username, password)
-    set({ authenticated: true, username: res.username, mustChangePassword: res.mustChangePassword })
+    set({ authenticated: true, username: res.username, isAdmin: res.isAdmin, mustChangePassword: res.mustChangePassword })
     startHeartbeat()
   },
 

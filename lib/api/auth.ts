@@ -22,7 +22,7 @@ export async function getMe(): Promise<MeResponse> {
   return json.data as MeResponse
 }
 
-export async function login(username: string, password: string): Promise<{ username: string; mustChangePassword: boolean }> {
+export async function login(username: string, password: string): Promise<{ username: string; isAdmin: boolean; mustChangePassword: boolean }> {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -32,7 +32,7 @@ export async function login(username: string, password: string): Promise<{ usern
   if (!res.ok || !json.success) {
     throw new Error(json.error?.message || '登录失败')
   }
-  return json.data.user as { username: string; mustChangePassword: boolean }
+  return json.data.user as { username: string; isAdmin: boolean; mustChangePassword: boolean }
 }
 
 export async function logout(): Promise<void> {
