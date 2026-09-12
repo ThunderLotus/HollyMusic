@@ -124,6 +124,7 @@ interface PlayerStore {
 
   // 睡眠定时器
   cycleSleepTimer: () => void
+  setSleepTimer: (minutes: number | null) => void
   clearSleepTimer: () => void
 }
 
@@ -419,6 +420,21 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     }, ms)
     set({ sleepTimer: { minutes: nextMinutes, expiresAt: Date.now() + ms } })
   },
+  setSleepTimer: (minutes) => {
+    if (sleepTimerHandle) { clearTimeout(sleepTimerHandle); sleepTimerHandle = null }
+    if (minutes === null || minutes <= 0) {
+      set({ sleepTimer: null })
+      return
+    }
+    const ms = minutes * 60_000
+    sleepTimerHandle = setTimeout(() => {
+      usePlayerStore.getState().setIsPlaying(false)
+      usePlayerStore.setState({ sleepTimer: null })
+      sleepTimerHandle = null
+    }, ms)
+    set({ sleepTimer: { minutes, expiresAt: Date.now() + ms } })
+  },
+
   clearSleepTimer: () => {
     if (sleepTimerHandle) { clearTimeout(sleepTimerHandle); sleepTimerHandle = null }
     set({ sleepTimer: null })

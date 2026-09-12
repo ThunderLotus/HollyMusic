@@ -10,12 +10,14 @@ import { usePlayerStore } from '@/lib/store/player-store'
 import { ProgressBar } from './ProgressBar'
 import { PlayerButton } from './PlayerButton'
 import { QualityList } from './QualityList'
+import { SleepTimerPicker } from './SleepTimerPicker'
 import { MoreHorizontal, Repeat, Repeat1, Shuffle, Timer, Volume2, VolumeX, ChevronDown } from 'lucide-react'
 import { QUALITY_LABEL, QUALITY_ORDER } from '@/lib/quality-options'
 
 export function MobilePlayerMenu() {
   const [open, setOpen] = useState(false)
   const [qualityOpen, setQualityOpen] = useState(false)
+  const [timerOpen, setTimerOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<number | null>(null)
 
@@ -25,7 +27,7 @@ export function MobilePlayerMenu() {
   const setQuality = usePlayerStore(s => s.setQuality)
   const currentTrack = usePlayerStore(s => s.currentTrack)
   const sleepTimer = usePlayerStore(s => s.sleepTimer)
-  const cycleSleepTimer = usePlayerStore(s => s.cycleSleepTimer)
+
   const volume = usePlayerStore(s => s.volume)
   const isMuted = usePlayerStore(s => s.isMuted)
   const setVolume = usePlayerStore(s => s.setVolume)
@@ -108,7 +110,7 @@ export function MobilePlayerMenu() {
 
           <button
             type="button"
-            onClick={cycleSleepTimer}
+            onClick={() => setTimerOpen(v => !v)}
             className="flex w-full items-center justify-between rounded-md px-2 py-2.5 text-[11px] hover:bg-accent"
           >
             <span className="flex items-center gap-2">
@@ -118,6 +120,11 @@ export function MobilePlayerMenu() {
               {sleepTimer ? `${sleepTimer.minutes} 分钟` : '关闭'}
             </span>
           </button>
+          {timerOpen && (
+            <div className="mt-1 border-t border-border pt-1">
+              <SleepTimerPicker onClose={() => setTimerOpen(false)} />
+            </div>
+          )}
 
           <div className="mt-1 flex items-center gap-2 border-t border-border px-2 pt-2">
             <PlayerButton icon={VolIcon} label={isMuted ? '取消静音' : '静音'} onClick={toggleMute} size="sm" active={isMuted} />
