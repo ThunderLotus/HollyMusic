@@ -11,15 +11,20 @@ FROM node:20-bookworm-slim AS deps
 
 WORKDIR /app
 
-# 安装 pnpm（走淘宝源加速）
+# 安装 pnpm
+# 默认走官方源（CI 海外 runner 稳定）；国内构建传 --build-arg NPM_REGISTRY=https://registry.npmmirror.com 加速
 # 注：曾尝试 corepack + COREPACK_NPM_REGISTRY，但淘宝镜像对 corepack 的
 # fetchTarballURL 兼容性差（HTTP 404），改回 npm install -g 更稳
-RUN npm config set registry https://registry.npmmirror.com && npm install -g pnpm
+ARG NPM_REGISTRY=""
+RUN if [ -n "${NPM_REGISTRY}" ]; then npm config set registry "${NPM_REGISTRY}"; fi && npm install -g pnpm
 
 # 先复制 package 文件（利用 docker layer cache：源码变动不会使依赖安装缓存失效）
 # .npmrc 必须在 install 之前到位：node-linker=hoisted 影响 needle/cheerio 等传递依赖的解析
 COPY package.json pnpm-lock.yaml .npmrc ./
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml frontend/
+
+# 未指定 NPM_REGISTRY 时移除 .npmrc 中的淘宝镜像（用官方源，避免 CI 海外 runner 访问淘宝镜像失败）
+RUN if [ -z "${NPM_REGISTRY}" ]; then sed -i '/^registry=/d' .npmrc; fi
 
 # 带 pnpm store cache mount 安装依赖：
 # - 首次构建：照常下载
