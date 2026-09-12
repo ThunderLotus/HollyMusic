@@ -65,21 +65,21 @@ describe('config-sync', () => {
 
     expect(user.create).toHaveBeenCalledTimes(2)
     expect(user.create).toHaveBeenNthCalledWith(1, {
-      data: { username: 'admin', subsonicSecret: '123456', mustChangePassword: true },
+      data: { username: 'admin', subsonicSecret: '123456', mustChangePassword: true, role: 'admin' },
     })
-    expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('随机初始密码'))
+    expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('默认初始密码'))
   })
 
-  it('没有 admin 时创建随机管理员并只输出一次密码', async () => {
+  it('没有 admin 时创建默认管理员（密码 12345）并输出日志', async () => {
     user.findUnique.mockResolvedValue(null)
     user.create.mockResolvedValue({})
 
     await expect(ensureInitialAdmin()).resolves.toEqual({ created: true, username: 'admin' })
 
     expect(user.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ username: 'admin', mustChangePassword: true }),
+      data: { username: 'admin', subsonicSecret: '12345', mustChangePassword: true, role: 'admin' },
     })
-    expect(logger.info).toHaveBeenCalledWith(expect.stringMatching(/^\[config-sync\] 随机初始密码: /))
+    expect(logger.info).toHaveBeenCalledWith(expect.stringMatching(/^\[config-sync\] 默认初始密码: 12345$/))
   })
 
   it('拒绝 users.json 中的重复用户名', async () => {

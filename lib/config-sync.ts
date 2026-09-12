@@ -1,10 +1,12 @@
 import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import crypto from 'crypto'
 import { PrismaClient } from './generated/prisma'
 import { logger } from '@/lib/logger'
 
 const prisma = new PrismaClient()
+
+/** 默认管理员初始密码（替代随机密码机制） */
+const DEFAULT_ADMIN_PASSWORD = '12345'
 
 export type UserConfigEntry = { username: string; password: string }
 
@@ -19,20 +21,7 @@ export type InitialAdminResult = {
 }
 
 /**
- * 生成 16 位随机密码（字母+数字，易抄写）。
- * 用于首次初始化的 admin 账户，避免默认 admin/admin 弱口令。
- */
-function generateRandomPassword(length = 16): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-  const bytes = crypto.randomBytes(length)
-  let pwd = ''
-  for (let i = 0; i < length; i++) {
-    pwd += chars[bytes[i] % chars.length]
-  }
-  return pwd
-}
 
-/**
  * 导入运维者显式提供的用户配置。
  *
  * 不在这里生成默认管理员，也不把随机密码写入 config/users.json：
@@ -74,12 +63,11 @@ export async function syncUsersFromConfig(configPath?: string): Promise<SyncUser
       const existing = await prisma.user.findUnique({ where: { username } })
       if (!existing) {
         // 首次创建：以 config/users.json 为准。
-        // 但若配置里是弱口令 'admin'（仓库默认值），改用随机密码，避免弱口令进 DB。
-        // admin 账户强制要求首次登录改密（随机初始密码 / 默认 admin/admin 场景）。
+        // 但若配置里是弱口令 'admin'（仓库默认值），改用默认密码 12345，避免弱口令进 DB。
         let effectivePassword = password
         if (username === 'admin' && password === 'admin') {
-          effectivePassword = generateRandomPassword()
-          logInitialAdminPassword('[config-sync] config/users.json 中 admin 密码为默认弱口令，已改用随机密码', effectivePassword)
+          effectivePassword = DEFAULT_ADMIN_PASSWORD
+          logInitialAdminPassword('[config-sync] config/users.json 中 admin 密码为默认弱口令，已改用默认密码', effectivePassword)
         }
         const mustChange = username === 'admin'
         await prisma.user.create({
@@ -92,16 +80,15 @@ export async function syncUsersFromConfig(configPath?: string): Promise<SyncUser
       // 也就不会反复触发下方的弱口令迁移导致 mustChangePassword 被反复置 true。
     }
 
-    // 迁移历史弱口令：仍使用 admin/admin 的账户，重置为随机密码并强制改密
+    // 迁移历史弱口令：仍使用 admin/admin 的账户，重置为默认密码 12345
     try {
       const weakUsers = await prisma.user.findMany({ where: { subsonicSecret: 'admin' } })
       for (const wu of weakUsers) {
-        const newPwd = generateRandomPassword()
         await prisma.user.update({
           where: { id: wu.id },
-          data: { subsonicSecret: newPwd, mustChangePassword: true, sessionVersion: { increment: 1 } },
+          data: { subsonicSecret: DEFAULT_ADMIN_PASSWORD, mustChangePassword: true, sessionVersion: { increment: 1 } },
         })
-        logInitialAdminPassword(`[config-sync] 检测到弱口令账户 "${wu.username}"（原密码为 admin），已重置为随机密码`, newPwd)
+        logInitialAdminPassword(`[config-sync] 检测到弱口令账户 "${wu.username}"（原密码为 admin），已重置为默认密码`, DEFAULT_ADMIN_PASSWORD)
       }
     } catch (e) {
       logger.warn(`[config-sync] 弱口令迁移失败（非致命）: ${formatError(e)}`)
@@ -118,17 +105,17 @@ export async function syncUsersFromConfig(configPath?: string): Promise<SyncUser
 }
 
 /**
- * 没有任何管理员时创建随机 admin。
- * 密码只写入数据库并输出一次启动日志，绝不写入 config/users.json 或镜像层。
+ * 没有任何管理员时创建默认 admin。
+ * 密码固定为 12345，直接写入数据库并输出启动日志，绝不写入 config/users.json 或镜像层。
  */
 export async function ensureInitialAdmin(): Promise<InitialAdminResult> {
   const existing = await prisma.user.findUnique({ where: { username: 'admin' } })
   if (existing) return { created: false, username: 'admin' }
 
-  const password = generateRandomPassword()
+  const password = DEFAULT_ADMIN_PASSWORD
   try {
     await prisma.user.create({
-      data: { username: 'admin', subsonicSecret: password, mustChangePassword: true },
+      data: { username: 'admin', subsonicSecret: password, mustChangePassword: true, role: 'admin' },
     })
   } catch (err) {
     // 多实例同时首启时，另一个实例可能已抢先创建 admin；此时不重复打印密码。
@@ -145,8 +132,8 @@ export async function ensureInitialAdmin(): Promise<InitialAdminResult> {
 function logInitialAdminPassword(message: string, password: string): void {
   logger.info('========================================================')
   logger.info(message)
-  logger.info(`[config-sync] 随机初始密码: ${password}`)
-  logger.info('[config-sync] 请立即登录并修改密码！此密码仅显示一次。')
+  logger.info(`[config-sync] 默认初始密码: ${password}`)
+  logger.info('[config-sync] 请登录后及时修改密码。')
   logger.info('========================================================')
 }
 
