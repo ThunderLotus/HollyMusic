@@ -275,40 +275,6 @@ function UserDialog({ mode, onClose, onCreated, onUpdated, onPasswordChanged }: 
     }
   }
 
-function UserDialog({ mode, onClose, onCreated, onUpdated, onPasswordChanged }: DialogProps) {
-  const [username, setUsername] = useState(mode.kind === 'edit' ? mode.user.username : '')
-  const [password, setPassword] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-
-  const title =
-    mode.kind === 'create'
-      ? '新建用户'
-      : mode.kind === 'edit'
-        ? '编辑用户'
-        : '重置密码'
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErr(null)
-    setSubmitting(true)
-    try {
-      if (mode.kind === 'create') {
-        if (!username.trim() || !password) throw new Error('用户名和密码不能为空')
-        await onCreated(username.trim(), password)
-      } else if (mode.kind === 'edit') {
-        if (!username.trim()) throw new Error('用户名不能为空')
-        await onUpdated(mode.user.id, username.trim())
-      } else {
-        if (!password) throw new Error('密码不能为空')
-        await onPasswordChanged(mode.user.id, password)
-      }
-    } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : '操作失败')
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
